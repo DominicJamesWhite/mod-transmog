@@ -27,6 +27,7 @@ Cant transmogrify rediculus items // Foereaper: would be fun to stab people with
 #include "DatabaseEnv.h"
 #include "WorldPacket.h"
 #include "Opcodes.h"
+#include "transmog_addon_msg.h"
 
 #define sT  sTransmogrification
 #define GTS session->GetAcoreString // dropped translation support, no one using?
@@ -494,33 +495,11 @@ public:
         return new npc_transmogrifierAI(creature);
     }
 
-    bool OnGossipHello(Player* player, Creature* creature) override
+    bool OnGossipHello(Player* player, Creature* /*creature*/) override
     {
-        WorldSession* session = player->GetSession();
-        LocaleConstant locale = session->GetSessionDbLocaleIndex();
-
-        // Clear the search string for the player
-        sT->searchStringByPlayer.erase(player->GetGUID().GetCounter());
-
-        if (sT->GetEnableTransmogInfo())
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Misc_Book_11:30:30:-18:0|t" + GetLocaleText(locale, "how_works"), EQUIPMENT_SLOT_END + 9, 0);
-        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-        {
-            if (const char* slotName = sT->GetSlotName(slot, session))
-            {
-                Item* newItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
-                uint32 entry = newItem ? sT->GetFakeEntry(newItem->GetGUID()) : 0;
-                std::string icon = entry ? sT->GetItemIcon(entry, 30, 30, -18, 0) : sT->GetSlotIcon(slot, 30, 30, -18, 0);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, icon + std::string(slotName), EQUIPMENT_SLOT_END, slot);
-            }
-        }
-#ifdef PRESETS
-        if (sT->GetEnableSets())
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/RAIDFRAME/UI-RAIDFRAME-MAINASSIST:30:30:-18:0|t" + GetLocaleText(locale, "manage_sets"), EQUIPMENT_SLOT_END + 4, 0);
-#endif
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Enchant_Disenchant:30:30:-18:0|t" + GetLocaleText(locale, "remove_transmog"), EQUIPMENT_SLOT_END + 2, 0, GetLocaleText(locale, "remove_transmog_ask"), 0, false);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/PaperDollInfoFrame/UI-GearManager-Undo:30:30:-18:0|t" + GetLocaleText(locale, "update_menu"), EQUIPMENT_SLOT_END + 1, 0);
-        SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
+        // Close gossip and send data to the TransmogUI addon instead
+        CloseGossipMenuFor(player);
+        SendTransmogSlotData(player);
         return true;
     }
 

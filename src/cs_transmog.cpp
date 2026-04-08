@@ -23,6 +23,7 @@
 #include "Tokenize.h"
 #include "DatabaseEnv.h"
 #include "SpellMgr.h"
+#include "transmog_addon_msg.h"
 
 using namespace Acore::ChatCommands;
 
@@ -41,12 +42,22 @@ public:
 
         static ChatCommandTable transmogTable =
         {
-            { "add",       addCollectionTable                                            },
-            { "",          HandleDisableTransMogVisual,   SEC_PLAYER,        Console::No },
-            { "sync",      HandleSyncTransMogCommand,     SEC_PLAYER,        Console::No },
-            { "portable",  HandleTransmogPortableCommand, SEC_PLAYER,        Console::No },
-            { "interface", HandleInterfaceOption,         SEC_PLAYER,        Console::No },
-            { "reload",    HandleReloadTransmogConfig,    SEC_ADMINISTRATOR, Console::Yes}
+            { "add",        addCollectionTable                                            },
+            { "",           HandleDisableTransMogVisual,    SEC_PLAYER,        Console::No },
+            { "sync",       HandleSyncTransMogCommand,      SEC_PLAYER,        Console::No },
+            { "portable",   HandleTransmogPortableCommand,  SEC_PLAYER,        Console::No },
+            { "interface",  HandleInterfaceOption,          SEC_PLAYER,        Console::No },
+            { "reload",     HandleReloadTransmogConfig,     SEC_ADMINISTRATOR, Console::Yes},
+            { "ui",         HandleTransmogUICommand,        SEC_PLAYER,        Console::No },
+            { "select",     HandleTransmogSelectCommand,    SEC_PLAYER,        Console::No },
+            { "apply",      HandleTransmogApplyCommand,     SEC_PLAYER,        Console::No },
+            { "hide",       HandleTransmogHideCommand,      SEC_PLAYER,        Console::No },
+            { "unapply",    HandleTransmogUnapplyCommand,   SEC_PLAYER,        Console::No },
+            { "unapplyall", HandleTransmogUnapplyAllCmd,    SEC_PLAYER,        Console::No },
+            { "search",     HandleTransmogSearchCommand,    SEC_PLAYER,        Console::No },
+            { "saveset",    HandleTransmogSaveSetCommand,   SEC_PLAYER,        Console::No },
+            { "loadset",    HandleTransmogLoadSetCommand,   SEC_PLAYER,        Console::No },
+            { "deleteset",  HandleTransmogDeleteSetCommand, SEC_PLAYER,        Console::No },
         };
 
         static ChatCommandTable commandTable =
@@ -323,6 +334,116 @@ public:
         handler->SendSysMessage("Transmog configs reloaded.");
         sTransmogrification->LoadCollections();
         handler->SendSysMessage("Transmog collections reloaded.");
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    // Addon UI commands — all require proximity to a transmog NPC
+    // -----------------------------------------------------------------------
+
+    static Player* GetPlayerNearTransmogNPC(ChatHandler* handler)
+    {
+        Player* player = handler->GetPlayer();
+        if (!player)
+            return nullptr;
+        if (!IsPlayerNearTransmogNPC(player))
+            return nullptr;
+        return player;
+    }
+
+    static bool HandleTransmogUICommand(ChatHandler* handler)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        SendTransmogSlotData(player);
+        return true;
+    }
+
+    static bool HandleTransmogSelectCommand(ChatHandler* handler, uint8 slot)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        if (slot >= EQUIPMENT_SLOT_END)
+            return false;
+        sTransmogrification->selectionCache[player->GetGUID()] = slot;
+        SendTransmogAppearancesForSlot(player, slot);
+        return true;
+    }
+
+    static bool HandleTransmogApplyCommand(ChatHandler* handler, uint8 slot, uint32 itemEntry)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogApply(player, slot, itemEntry);
+        return true;
+    }
+
+    static bool HandleTransmogHideCommand(ChatHandler* handler, uint8 slot)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogHide(player, slot);
+        return true;
+    }
+
+    static bool HandleTransmogUnapplyCommand(ChatHandler* handler, uint8 slot)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogRemove(player, slot);
+        return true;
+    }
+
+    static bool HandleTransmogUnapplyAllCmd(ChatHandler* handler)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogRemoveAll(player);
+        return true;
+    }
+
+    static bool HandleTransmogSearchCommand(ChatHandler* handler, uint8 slot, Tail searchTerm)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        if (slot >= EQUIPMENT_SLOT_END)
+            return false;
+        sTransmogrification->selectionCache[player->GetGUID()] = slot;
+        SendTransmogAppearancesForSlot(player, slot, std::string(searchTerm));
+        return true;
+    }
+
+    static bool HandleTransmogSaveSetCommand(ChatHandler* handler, Tail name)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogSaveSet(player, std::string(name));
+        return true;
+    }
+
+    static bool HandleTransmogLoadSetCommand(ChatHandler* handler, uint8 presetId)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogLoadSet(player, presetId);
+        return true;
+    }
+
+    static bool HandleTransmogDeleteSetCommand(ChatHandler* handler, uint8 presetId)
+    {
+        Player* player = GetPlayerNearTransmogNPC(handler);
+        if (!player)
+            return false;
+        HandleTransmogDeleteSet(player, presetId);
         return true;
     }
 };
